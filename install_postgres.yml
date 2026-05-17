@@ -1,0 +1,92 @@
+- name: Install Docker and run PostgreSQL container
+  hosts: postgres
+  become: true
+
+  vars:
+    postgres_data_dir: /opt/postgres/data
+
+  tasks:
+
+    # --- Установка зависимостей Docker ---
+    - name: Install dependencies for Docker
+      apt:
+        name:
+          - ca-certificates
+          - curl
+          - gnupg
+          - lsb-release
+        state: present
+        update_cache: true
+
+    # --- GPG ключ Docker ---
+    - name: Add Docker GPG key
+      shell: |
+        curl -fsSL https://download.docker.com/linux/ubuntu/gpg \
+        | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+      args:
+        creates: /usr/share/keyrings/docker-archive-keyring.gpg
+
+    # --- Репозиторий Docker ---
+    - name: Add Docker repository
+      shell: |
+        echo "deb [arch=$(dpkg --print-architecture) \
+        signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] \
+        https://download.docker.com/linux/ubuntu \
+        $(lsb_release -cs) stable" \
+        | tee /etc/apt/sources.list.d/docker.list
+      args:
+        creates: /etc/apt/sources.list.d/docker.list
+
+    # --- Установка Docker ---
+    - name: Install Docker
+      apt:
+        name:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+          - docker-compose-plugin
+        state: present
+        update_cache: true
+
+    # --- Запуск и автозапуск Docker ---
+    - name: Enable and start Docker service
+      systemd:
+        name: docker
+        enabled: true
+        state: started
+
+    # --- Добавление пользователя в группу docker ---
+    - name: Add user to docker group
+      user:
+        name: "{{ ansible_user }}"
+        groups: docker
+        append: true
+
+    # --- Установка python3-docker на управляемом хосте ---
+    - name: Install python3-docker
+      apt:
+        name: python3-docker
+        state: present
+
+    # --- Создание директории для данных PostgreSQL ---
+    - name: Create PostgreSQL data directory
+      file:
+        path: "{{ postgres_data_dir }}"
+        state: directory
+        mode: '0755'
+
+    # --- Запуск контейнера PostgreSQL ---
+    - name: Run PostgreSQL container
+      docker_container:
+        name: postgres
+        image: postgres:16
+        state: started
+        restart_policy: always
+        env:
+          POSTGRES_USER: "{{ postgres_user }}"
+          POSTGRES_PASSWORD: "{{ postgres_password }}"
+          POSTGRES_DB: "{{ postgres_db }}"
+        ports:
+          - "{{ postgres_port }}:5432"
+        volumes:
+          - "{{ postgres_data_dir }}:/var/lib/postgresql/data"

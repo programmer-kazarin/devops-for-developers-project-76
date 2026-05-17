@@ -1,63 +1,14 @@
-- name: Install Docker and run Caddy as Load Balancer
+- name: Install and run Caddy as Load Balancer
   hosts: balancer
   become: true
 
   tasks:
 
-    # --- Установка зависимостей Docker ---
-    - name: Install dependencies for Docker
+    # --- Установка python3-docker ---
+    - name: Install python3-docker
       apt:
-        name:
-          - ca-certificates
-          - curl
-          - gnupg
-          - lsb-release
+        name: python3-docker
         state: present
-        update_cache: true
-
-    # --- GPG ключ Docker ---
-    - name: Add Docker GPG key
-      shell: |
-        curl -fsSL https://download.docker.com/linux/ubuntu/gpg \
-        | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
-      args:
-        creates: /usr/share/keyrings/docker-archive-keyring.gpg
-
-    # --- Репозиторий Docker ---
-    - name: Add Docker repository
-      shell: |
-        echo "deb [arch=$(dpkg --print-architecture) \
-        signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] \
-        https://download.docker.com/linux/ubuntu \
-        $(lsb_release -cs) stable" \
-        | tee /etc/apt/sources.list.d/docker.list
-      args:
-        creates: /etc/apt/sources.list.d/docker.list
-
-    # --- Установка Docker ---
-    - name: Install Docker
-      apt:
-        name:
-          - docker-ce
-          - docker-ce-cli
-          - containerd.io
-          - docker-compose-plugin
-        state: present
-        update_cache: true
-
-    # --- Запуск и автозапуск Docker ---
-    - name: Enable and start Docker service
-      systemd:
-        name: docker
-        enabled: true
-        state: started
-
-    # --- Добавление пользователя в группу docker ---
-    - name: Add user to docker group
-      user:
-        name: "{{ ansible_user }}"
-        groups: docker
-        append: true
 
     # --- Создание директории для конфига Caddy ---
     - name: Create Caddy config directory
