@@ -1,0 +1,11 @@
+:{{ caddy_port }} {
+    reverse_proxy {
+        {% for host in groups['servers'] %}
+        to {{ hostvars[host]['ansible_host'] }}:{{ hostvars[host]['http_port'] }}
+        {% endfor %}
+        lb_policy round_robin
+        health_uri /
+        health_interval 10s
+        health_timeout 5s
+    }
+}
